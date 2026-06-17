@@ -1,0 +1,138 @@
+{
+  "info": {
+    "name": "AfristarPay API",
+    "_postman_id": "afristarpay-collection-v1",
+    "description": "Stellar cross-border remittance API for NGN, GHS, KES, ZAR corridors",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "senderSecret", "value": "SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "type": "string" },
+    { "key": "destAddress", "value": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", "type": "string" },
+    { "key": "txHash", "value": "", "type": "string" },
+    { "key": "anchorTxId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Remittance",
+      "item": [
+        {
+          "name": "POST /remit",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/remit", "host": ["{{baseUrl}}"], "path": ["remit"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderKeypair\": \"{{senderSecret}}\",\n  \"destAddress\": \"{{destAddress}}\",\n  \"sendAsset\": { \"code\": \"USDC\", \"issuer\": \"GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN\" },\n  \"destAsset\": { \"code\": \"NGNC\", \"issuer\": \"GAWODAROMJ33V5YDFY3EFYMV2SUC2TRQN2ZGQT7HNO5JTA46NTKU4GS\" },\n  \"amount\": \"10\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.hash) pm.collectionVariables.set('txHash', res.hash);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /corridors",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/corridors", "host": ["{{baseUrl}}"], "path": ["corridors"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Anchor (SEP-6 / SEP-12)",
+      "item": [
+        {
+          "name": "POST /anchor/register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/anchor/register", "host": ["{{baseUrl}}"], "path": ["anchor", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account\": \"{{destAddress}}\",\n  \"first_name\": \"Amara\",\n  \"last_name\": \"Okafor\",\n  \"email_address\": \"amara@example.com\",\n  \"birth_date\": \"1990-01-15\",\n  \"address\": \"14 Lagos Street, Ikeja, Nigeria\",\n  \"id_type\": \"passport\",\n  \"id_number\": \"A12345678\",\n  \"id_expiration\": \"2030-01-01\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /anchor/deposit",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/anchor/deposit?asset_code=NGNC&account={{destAddress}}&amount=5000",
+              "host": ["{{baseUrl}}"],
+              "path": ["anchor", "deposit"],
+              "query": [
+                { "key": "asset_code", "value": "NGNC" },
+                { "key": "account", "value": "{{destAddress}}" },
+                { "key": "amount", "value": "5000" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('anchorTxId', res.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /anchor/withdraw",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/anchor/withdraw?asset_code=NGNC&account={{destAddress}}&dest=0123456789&dest_extra=GTBank&amount=5000",
+              "host": ["{{baseUrl}}"],
+              "path": ["anchor", "withdraw"],
+              "query": [
+                { "key": "asset_code", "value": "NGNC" },
+                { "key": "account", "value": "{{destAddress}}" },
+                { "key": "dest", "value": "0123456789" },
+                { "key": "dest_extra", "value": "GTBank" },
+                { "key": "amount", "value": "5000" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /anchor/transaction/:id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/anchor/transaction/{{anchorTxId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["anchor", "transaction", "{{anchorTxId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "WebSocket /status (Socket.IO)",
+      "item": [
+        {
+          "name": "WS Subscribe to txHash",
+          "request": {
+            "method": "GET",
+            "description": "Connect via Socket.IO to ws://localhost:3000/status\nEmit event: subscribe\nPayload: \"{{txHash}}\"\n\nExpected events received:\n- subscribed: { txHash }\n- status: { txHash, status, ledger, created_at, fee_charged }\n- error: { txHash, message }",
+            "url": { "raw": "{{baseUrl}}/status", "host": ["{{baseUrl}}"], "path": ["status"] }
+          }
+        }
+      ]
+    }
+  ]
+}
